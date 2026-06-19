@@ -1,0 +1,18 @@
+<input type="file" id="fileInput" />
+<button onclick="uploadChunk()">上传分片0</button>
+<script>
+  async function uploadChunk() {
+    const file = document.getElementById("fileInput").files[0];
+    const formData = new FormData();
+    formData.append("fileHash", "test123");
+    formData.append("chunkIndex", "0");
+    formData.append("chunk", file);
+
+    const res = await fetch("http://localhost:3001/api/upload/chunk", {
+      method: "POST",
+      body: formData,
+    });
+    const data = await res.json();
+    console.log(data);
+  }
+</script>
