@@ -11,6 +11,7 @@ export function UseUploadManager(option?: { maxConcurrentTasks: number }) {
   const tasks = ref<UseUploadTaskReturn[]>([])
   const activeCount = ref<number>(0)
   const activeTaskSet = new Set() // 【记录当前真正占用槽位的任务】
+  // const activeTaskSet = ref<Set>(new Set()) // 【记录当前真正占用槽位的任务】
   const waitingTaskQueue: UseUploadTaskReturn[] = []
   const maxConcurrentTasks = option?.maxConcurrentTasks || 3
 
@@ -42,15 +43,23 @@ export function UseUploadManager(option?: { maxConcurrentTasks: number }) {
       // watch返回的是一个stop函数，调用可停止监听，防止内存泄漏
       const _stopWatch = watch(
         () => uploadTask.task.status,
-        (newsStatus) => {
-          if (['done', 'paused', 'error', 'cancelled'].includes(newsStatus)) {
+        (newStatus, oldStatus) => {
+          console.log(`[Watch] ${uploadTask.task.id} 状态变化: ${oldStatus} -> ${newStatus}`)
+          if (['done', 'paused', 'error', 'cancelled'].includes(newStatus)) {
             // 🔥 标记：如果这个任务正在占用槽位，释放它
-            if (activeTaskSet.has(uploadTask)) {
-              activeTaskSet.delete(uploadTask)
+            console.log(
+              'activeTaskSet----------->',
+              activeTaskSet,
+              activeTaskSet.has(uploadTask.task.id),
+            )
+            if (activeTaskSet.has(uploadTask.task.id)) {
+              activeTaskSet.delete(uploadTask.task.id) //暂停的时候不可以删除uploadTask
+              console.log('------------- activeCount--', newStatus, uploadTask.task.fileName)
               activeCount.value--
               tryStartNext()
               //移除列表了，不需要监听了
-              if (newsStatus === 'done' || newsStatus === 'cancelled') {
+              if (newStatus === 'done' || newStatus === 'cancelled') {
+                console.log('xxxxxxxxxx ', 'stopwatch', uploadTask.task.fileName)
                 _stopWatch() // 任务终态后不再需要监听
               }
             }
@@ -80,7 +89,10 @@ export function UseUploadManager(option?: { maxConcurrentTasks: number }) {
       // uploading: 正在上传的，正常也不会出现在等待列表中，但以防边界情况此处可以处理为【继续上传】
 
       // 🔥 标记：这个任务现在占用槽位
-      activeTaskSet.add(uploadTask)
+      console.log('>>>>> activeTaskSet >>> activeCount++')
+      activeTaskSet.add(uploadTask.task.id)
+
+      console.log('activeTaskSet+++++++++>', activeTaskSet)
       activeCount.value++
       uploadTask.start()
     }
@@ -97,6 +109,7 @@ export function UseUploadManager(option?: { maxConcurrentTasks: number }) {
   function resumeTask(uploadTask: UseUploadTaskReturn) {
     if (uploadTask.task.status !== 'paused') return
     //放入队列，让调度器处理
+    console.log('=-=-=-=-=-=-=[resumeTask] ')
     enqueueTask(uploadTask)
   }
   function retryTask(uploadTask: UseUploadTaskReturn) {
@@ -111,6 +124,8 @@ export function UseUploadManager(option?: { maxConcurrentTasks: number }) {
       (waitingTask) => waitingTask.task.id === uploadTask.task.id,
     )
     uploadTask.task.status = 'waiting' //变更状态为waiting
+
+    console.log('=-=-=-=-=-=-=[] 状态已设为 waiting，即将调用 start')
     if (!exists) waitingTaskQueue.push(uploadTask)
     tryStartNext()
   }

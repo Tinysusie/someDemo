@@ -1,7 +1,7 @@
 <template>
   <div class="demo">
     <div>
-      <p>大文件上传</p>
+      <p>大文件上传 {{ uploadManager.activeCount }}</p>
       <el-button v-if="uploadManager.tasks.value.length > 0" @click="startUpload()"
         >开始上传</el-button
       >
@@ -13,8 +13,6 @@
             :percentage="task.task.progress"
             :status="task.task.status === 'error' ? 'exception' : undefined"
           />
-          <p>{{ task.task.fileName }}</p>
-          {{ task.task.status }}
           <div class="button-group">
             <el-button v-show="task.task.status === 'uploading'" @click="pauseUpload(task)"
               >暂停</el-button
@@ -41,6 +39,11 @@
               @click="retryUpload(task)"
               >重试</el-button
             >
+          </div>
+
+          <div class="text-block">
+            <div class="task-name">{{ task.task.fileName }}</div>
+            <div class="task-status">{{ task.task.status }}</div>
           </div>
         </div>
         <div class="task-item task-upload">
@@ -144,6 +147,20 @@ p {
         background-color: #ffffff7b;
         transition: all ease 0.3s;
       }
+      .text-block {
+        position: absolute;
+        bottom: 0;
+        width: 100%;
+        text-align: center;
+        > div {
+          max-width: 100%;
+          word-break: break-all;
+        }
+        .task-name {
+          text-align: left;
+          display: inline-block;
+        }
+      }
     }
     .button-group {
       cursor: default;
@@ -214,6 +231,7 @@ p {
     display: block;
   }
 }
+
 /* .upload-card-block :deep(.el-upload-list__item) {
   display: inline-block;
   width: 150px;

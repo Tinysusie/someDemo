@@ -47,6 +47,7 @@ export function UseUploadTask(
   // 初始化task 计算hash 查询已上传切片，现在状态；开始任务
   // 暂停后恢复
   async function start() {
+    console.log(`[start] 开始，当前状态: ${task.status}`)
     try {
       if (!task.fileHash) task.fileHash = await computeFileHash(file)
 
@@ -220,6 +221,7 @@ export function UseUploadTask(
         fileName: task.fileName,
       }
       await mergeUpload(mergeParams)
+      console.log('+++++++change status to done')
       task.isCompleted = true //?
       task.status = 'done'
       task.progress = 100
