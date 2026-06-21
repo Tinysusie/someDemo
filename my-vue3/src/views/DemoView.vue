@@ -1,17 +1,15 @@
 <template>
   <div class="demo">
     <div>
-      <p>大文件上传 {{ uploadManager.activeCount }}</p>
-      <el-button v-if="uploadManager.tasks.value.length > 0" @click="startUpload()"
-        >开始上传</el-button
-      >
+      <p>大文件上传 {{ uploadStore.activeCount }}</p>
+      <el-button v-if="uploadStore.tasks.length > 0" @click="startUpload()">开始上传</el-button>
       <div class="task-list">
-        <div class="task-item" v-for="task in uploadManager.tasks.value" :key="task.id">
+        <div class="task-item" v-for="task in uploadStore.tasks" :key="task.id">
           <el-progress
             class="task-progress"
             type="circle"
             :percentage="task.task.progress"
-            :status="task.task.status === 'error' ? 'exception' : undefined"
+            :status="progressStatus(task.task)"
           />
           <div class="button-group">
             <el-button v-show="task.task.status === 'uploading'" @click="pauseUpload(task)"
@@ -23,12 +21,10 @@
               @click="resumeUpload(task)"
               >继续</el-button
             >
+
+            <!-- task.task.status !== 'error' && -->
             <el-button
-              v-show="
-                task.task.status !== 'done' &&
-                task.task.status !== 'error' &&
-                task.task.status !== 'cancelled'
-              "
+              v-show="task.task.status !== 'done' && task.task.status !== 'cancelled'"
               type="danger"
               @click="handleCancel(task)"
               >取消</el-button
@@ -43,7 +39,12 @@
 
           <div class="text-block">
             <div class="task-name">{{ task.task.fileName }}</div>
-            <div class="task-status">{{ task.task.status }}</div>
+
+            <div class="task-status">
+              <el-tag :type="statusTag(task.task.status)" size="small">
+                {{ task.task.status }}
+              </el-tag>
+            </div>
           </div>
         </div>
         <div class="task-item task-upload">
@@ -74,18 +75,22 @@
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { UploadFilled, Plus } from '@element-plus/icons-vue'
 import { ref } from 'vue'
-import { UseUploadManager } from '@/composables/upload/useUploadManager'
-import { type UseUploadTaskReturn } from '@/types/upload.ts'
+// import { UseUploadManager } from '@/composables/upload/useUploadManager'
+import { type UseUploadTaskReturn, type UploadTask } from '@/types/upload.ts'
+import { useUploadStore } from '@/stores/uploadFile'
+const uploadStore = useUploadStore()
 
-const MAX_CONCURRENTTASKS = 3
+// const { tasks, activeCount, pauseTask, resumeTask, cancelTask, retryTask } = uploadStore
+// const MAX_CONCURRENTTASKS = 3
 
-const uploadManager = UseUploadManager({ maxConcurrentTasks: MAX_CONCURRENTTASKS })
+// const uploadManager = UseUploadManager({ maxConcurrentTasks: MAX_CONCURRENTTASKS })
 
 const handleFileSelect = (event: Event) => {
   const target = event.target as HTMLInputElement
   if (target.files && target.files.length > 0 && target.files[0] instanceof File) {
     console.log(target.files)
-    uploadManager.addFiles(target.files)
+    // uploadManager.addFiles(target.files)
+    uploadStore.addFiles(target.files)
   }
 }
 function handleFileChange(file: any, fileList: any[]) {
@@ -96,11 +101,11 @@ function handleFileChange(file: any, fileList: any[]) {
 }
 
 async function startUpload() {
-  uploadManager.tryStartNext()
+  uploadStore.tryStartNext()
 }
 
 function pauseUpload(task: UseUploadTaskReturn) {
-  uploadManager.pauseTask(task)
+  uploadStore.pauseTask(task)
 }
 function handleCancel(task: UseUploadTaskReturn) {
   ElMessageBox.confirm('确认取消该文件上传？', '提示', {
@@ -109,16 +114,32 @@ function handleCancel(task: UseUploadTaskReturn) {
     type: 'warning',
   })
     .then(() => {
-      uploadManager.cancelTask(task)
+      uploadStore.cancelTask(task)
       ElMessage.success('已取消该文件上传')
     })
     .catch(() => {})
 }
 function resumeUpload(task: UseUploadTaskReturn) {
-  uploadManager.resumeTask(task)
+  uploadStore.resumeTask(task)
 }
 function retryUpload(task: UseUploadTaskReturn) {
-  uploadManager.retryTask(task)
+  uploadStore.retryTask(task)
+}
+function progressStatus(task: UploadTask) {
+  if (task.status === 'error' || task.status === 'cancelled') return 'exception'
+  if (task.status === 'done') return 'success'
+  return ''
+}
+function statusTag(status: string) {
+  const map = {
+    waiting: 'info',
+    uploading: 'primary',
+    paused: 'warning',
+    done: 'success',
+    error: 'danger',
+    cancelled: 'info',
+  }
+  return map[status as keyof typeof map] || 'info'
 }
 </script>
 <style>
